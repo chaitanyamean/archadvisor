@@ -9,6 +9,8 @@ Give it your system requirements. Get back a complete architecture document — 
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688)](https://fastapi.tiangolo.com)
 [![LangGraph](https://img.shields.io/badge/LangGraph-0.2+-orange)](https://langchain-ai.github.io/langgraph/)
 
+Video: https://www.loom.com/share/80d5b0c4a7d643c49eeef72316de99df
+
 ---
 
 ## How It Works
