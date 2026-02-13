@@ -16,19 +16,6 @@ Give it your system requirements. Get back a complete architecture document — 
 https://github.com/user-attachments/assets/1d24c9a5-b0c8-42e7-a1a2-aa690fdb618e
 
 
-
-https://github.com/user-attachments/assets/1d24c9a5-b0c8-42e7-a1a2-aa690fdb618e
-
-
-
-https://github.com/user-attachments/assets/40bb1560-fdfb-45b4-bed3-7637e18048e5
-
-
-
-https://github.com/user-attachments/assets/40bb1560-fdfb-45b4-bed3-7637e18048e5
-
-
-
 [https://www.loom.com/share/80d5b0c4a7d643c49eeef72316de99df](https://www.loom.com/share/80d5b0c4a7d643c49eeef72316de99df)
 ---
 
