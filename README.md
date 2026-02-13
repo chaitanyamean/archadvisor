@@ -11,7 +11,7 @@ Give it your system requirements. Get back a complete architecture document — 
 
 ## Demo
 
-[![ArchAdvisor Demo](https://cdn.loom.com/sessions/thumbnails/80d5b0c4a7d643c49eeef72316de99df-with-play.gif)](https://www.loom.com/share/80d5b0c4a7d643c49eeef72316de99df)
+[![ArchAdvisor Demo](https://cdn.loom.com/sessions/thumbnails/80d5b0c4a7d643c49eeef72316de99df-with-play.gif)]([https://www.loom.com/share/80d5b0c4a7d643c49eeef72316de99df](https://www.loom.com/share/80d5b0c4a7d643c49eeef72316de99df))
 
 ---
 
