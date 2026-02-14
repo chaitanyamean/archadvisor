@@ -87,13 +87,15 @@ class ErrorCode(str, Enum):
 class ValidationError(BaseModel):
     """A single validation finding."""
 
-    code: ErrorCode
+    code: str
     severity: Severity
     message: str
     component: Optional[str] = None  # Which component is affected
     field: Optional[str] = None      # Which JSON field triggered this
     suggestion: Optional[str] = None # How to fix it
     evidence: Optional[str] = None   # What data triggered the finding
+    category: Optional[str] = None   # "domain_pattern" for domain-specific findings
+
 
     class Config:
         use_enum_values = True
@@ -220,6 +222,24 @@ class ValidationReport(BaseModel):
     errors: list[ValidationError] = Field(default_factory=list)
     verdict: str = Field(default="", description="Human-readable verdict")
 
+    @staticmethod
+    def _compute_penalty(err: "ValidationError") -> tuple[str, float]:
+        """Compute (scoring_category, penalty_points) for a single error."""
+        sev = Severity(err.severity)
+        if err.category == "domain_pattern":
+            domain_penalties = {
+                Severity.CRITICAL: 8, Severity.HIGH: 8, Severity.MEDIUM: 4, Severity.LOW: 1,
+            }
+            return "operational", domain_penalties.get(sev, 2)
+
+        try:
+            error_code = ErrorCode(err.code)
+            category = ERROR_CATEGORY_MAP.get(error_code, "operational")
+        except ValueError:
+            category = "operational"
+        penalty = PENALTY_WEIGHTS.get(sev, {}).get(category, 2)
+        return category, penalty
+
     @classmethod
     def build(cls, errors: list[ValidationError]) -> "ValidationReport":
         """Build a complete report from a list of validation errors."""
@@ -231,8 +251,7 @@ class ValidationReport(BaseModel):
         # Compute score
         score_breakdown = ScoreBreakdown()
         for err in errors:
-            category = ERROR_CATEGORY_MAP.get(ErrorCode(err.code), "operational")
-            penalty = PENALTY_WEIGHTS.get(Severity(err.severity), {}).get(category, 2)
+            category, penalty = cls._compute_penalty(err)
             current = getattr(score_breakdown, category)
             setattr(score_breakdown, category, max(0, current - penalty))
 
