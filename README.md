@@ -42,7 +42,7 @@ Requirements --> RAG Context --> Architect --> Validator --+
 
 1. **RAG Retrieval** — Pulls similar past architectures from ChromaDB for context
 2. **Architect Agent** (GPT-4o) — Proposes a full system design with components, APIs, data flows, and deployment strategy
-3. **Deterministic Validator** — Runs 7 rule-based checks in <50ms (SPOF detection, availability math, capacity benchmarks, consistency validation, contradiction detection, complexity analysis, requirements coverage)
+3. **Deterministic Validator** — Runs 8 rule-based checks in <50ms (SPOF detection, availability math, capacity benchmarks, consistency validation, contradiction detection, complexity analysis, requirements coverage)
 4. **Devil's Advocate Agent** (GPT-4o) — Challenges the design as an SRE + Security Architect, producing scored findings
 5. **Debate Loop** — Architect revises based on critical findings, up to 3 rounds
 6. **Cost Analyzer Agent** (GPT-4o-mini) — Estimates costs across 3 scale tiers (Startup/Growth/Scale) for AWS, GCP, and Azure
@@ -55,7 +55,7 @@ All steps stream real-time progress to the browser via WebSocket.
 | Agent | Model | Role |
 |-------|-------|------|
 | **Architect** | GPT-4o | Proposes and revises system designs with components, APIs, data flows |
-| **Validator** | Deterministic | 7 rule-based checks — SPOF, availability math, capacity, consistency |
+| **Validator** | Deterministic | 8 rule-based checks — SPOF, availability math, capacity, consistency |
 | **Devil's Advocate** | GPT-4o | Finds weaknesses, SPOFs, security gaps as an SRE + Security Architect |
 | **Cost Analyzer** | GPT-4o-mini | Estimates AWS/GCP/Azure costs at Startup/Growth/Scale tiers |
 | **Documentation** | GPT-4o | Produces polished HLD with Mermaid diagrams, ADRs, risk register |
@@ -67,7 +67,8 @@ All steps stream real-time progress to the browser via WebSocket.
 ## Features
 
 - **Multi-Agent Debate** — Architect vs Devil's Advocate adversarial review loop
-- **Deterministic Validation Gate** — 7 validators catch issues before burning LLM tokens on review
+- **Deterministic Validation Gate** — 8 validators catch issues before burning LLM tokens on review
+- **Domain-Specific Pattern Checks** — Auto-detects domain (payments, chat, e-commerce, etc.) and validates against mandatory patterns, recommended patterns, and anti-patterns
 - **Composite Availability Math** — Calculates real SLA from component chain (e.g., 99.9% x 99.95% x 99.99%)
 - **SPOF Detection** — Flags single-instance databases, caches, gateways, and queues
 - **Contradiction Detection** — Catches event-driven without message broker, strong consistency with DynamoDB, etc.
@@ -200,7 +201,7 @@ archadvisor/
 │   │   │   ├── workflow.py          # Graph definition + compilation
 │   │   │   └── validator_node.py    # Validation gate node
 │   │   ├── validators/
-│   │   │   ├── engine.py            # Validation orchestrator (runs all 7)
+│   │   │   ├── engine.py            # Validation orchestrator (runs all 8)
 │   │   │   ├── models.py            # ErrorCode enum, ValidationReport
 │   │   │   ├── reference_data.py    # SLA benchmarks, throughput limits
 │   │   │   ├── schema_validator.py
@@ -209,7 +210,16 @@ archadvisor/
 │   │   │   ├── consistency_validator.py
 │   │   │   ├── contradiction_validator.py
 │   │   │   ├── operational_complexity_validator.py
-│   │   │   └── missing_requirement_validator.py
+│   │   │   ├── missing_requirement_validator.py
+│   │   │   ├── domain_pattern_validator.py  # Domain-specific checks
+│   │   │   └── domain_rules/        # JSON pattern files
+│   │   │       ├── loader.py        # Domain detection + rule loading
+│   │   │       ├── url_shortener.json
+│   │   │       ├── payments.json
+│   │   │       ├── ecommerce.json
+│   │   │       ├── chat_messaging.json
+│   │   │       ├── notification_system.json
+│   │   │       └── social_feed.json
 │   │   ├── api/
 │   │   │   ├── router.py            # API + WebSocket router setup
 │   │   │   ├── sessions.py          # Session CRUD + templates
