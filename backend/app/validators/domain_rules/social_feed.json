@@ -1,0 +1,65 @@
+{
+  "domain": "social_feed",
+  "display_name": "Social Media Feed / Timeline",
+  "keywords": ["social feed", "news feed", "timeline", "social media", "social network", "activity feed", "content feed", "twitter", "instagram", "facebook", "feed system"],
+  "mandatory_patterns": [
+    {
+      "id": "FEED_FANOUT_STRATEGY",
+      "name": "Fan-Out Strategy (Write vs Read)",
+      "description": "Feed systems must choose between fan-out-on-write and fan-out-on-read",
+      "check": "design_mentions_any",
+      "terms": ["fan.?out", "fan.?out.?on.?write", "fan.?out.?on.?read", "push.*model", "pull.*model", "pre.?compute.*feed", "materiali"],
+      "severity": "high",
+      "message": "No fan-out strategy defined. Feed systems must choose fan-out-on-write (pre-compute feeds, fast reads, expensive writes) vs fan-out-on-read (compute at read time, cheaper writes). Hybrid approaches use write-fanout for normal users and read-fanout for celebrities."
+    },
+    {
+      "id": "FEED_PAGINATION",
+      "name": "Cursor-Based Pagination",
+      "description": "Feed pagination must use cursors, not offset-based pagination",
+      "check": "design_mentions_any",
+      "terms": ["cursor", "pagination", "infinite.*scroll", "next.*page", "seek.*pagination", "keyset.*pagination"],
+      "severity": "medium",
+      "message": "No pagination strategy. Social feeds need cursor-based pagination (not offset-based) to handle real-time inserts without showing duplicates or skipping items during scrolling."
+    },
+    {
+      "id": "FEED_RANKING",
+      "name": "Feed Ranking / Scoring",
+      "description": "Feeds need a ranking algorithm to surface relevant content",
+      "check": "design_mentions_any",
+      "terms": ["rank", "score", "relevance", "algorithm", "engagement", "chronological", "sort.*feed", "feed.*order", "personali"],
+      "severity": "medium",
+      "message": "No feed ranking strategy. Purely chronological feeds are simple but show spam/low-quality content. Consider an engagement-weighted ranking model with chronological fallback."
+    }
+  ],
+  "recommended_patterns": [
+    {
+      "id": "FEED_CACHE_LAYER",
+      "name": "Feed Cache Layer",
+      "description": "Pre-computed feeds should be cached for fast retrieval",
+      "check": "design_mentions_any",
+      "terms": ["feed.*cache", "timeline.*cache", "redis.*feed", "cached.*feed", "pre.?comput"],
+      "severity": "low",
+      "message": "Consider caching pre-computed feeds (Redis sorted sets work well). Feed reads vastly outnumber writes — caching the top N items per user dramatically reduces DB load."
+    },
+    {
+      "id": "FEED_MODERATION",
+      "name": "Content Moderation Pipeline",
+      "description": "User-generated content needs moderation before appearing in feeds",
+      "check": "design_mentions_any",
+      "terms": ["moderat", "content.*filter", "spam.*detect", "report.*content", "flag.*content", "abuse", "nsfw"],
+      "severity": "low",
+      "message": "Consider a content moderation pipeline. Without moderation, feeds get polluted with spam and harmful content. Use a mix of automated (ML) and manual review."
+    }
+  ],
+  "anti_patterns": [
+    {
+      "id": "FEED_ANTI_NO_PAGINATION",
+      "name": "Loading Entire Feed Without Pagination",
+      "description": "Loading all feed items at once doesn't scale",
+      "check": "design_mentions_any",
+      "terms": ["load.*all.*feed", "fetch.*all.*post", "no.*pagination", "entire.*timeline"],
+      "severity": "high",
+      "message": "Loading the entire feed without pagination doesn't scale. Even with 100 items, the response payload and DB query cost grow unboundedly. Use cursor-based pagination with a page size of 20-50."
+    }
+  ]
+}

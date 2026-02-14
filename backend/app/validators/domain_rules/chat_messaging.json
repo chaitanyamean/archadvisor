@@ -1,0 +1,74 @@
+{
+  "domain": "chat_messaging",
+  "display_name": "Real-Time Chat / Messaging Platform",
+  "keywords": ["chat", "messaging", "instant message", "real-time chat", "whatsapp", "slack", "discord", "messenger", "chat platform", "group chat", "direct message"],
+  "mandatory_patterns": [
+    {
+      "id": "CHAT_MESSAGE_ORDERING",
+      "name": "Message Ordering Guarantees",
+      "description": "Chat messages must maintain causal ordering within a conversation",
+      "check": "design_mentions_any",
+      "terms": ["message.*order", "ordering.*guarantee", "sequence.*number", "causal.*order", "lamport", "vector.*clock", "timestamp.*order", "monotonic"],
+      "severity": "high",
+      "message": "No message ordering guarantee. Chat systems must maintain causal ordering within conversations — use sequence numbers, Lamport timestamps, or server-assigned monotonic IDs."
+    },
+    {
+      "id": "CHAT_DELIVERY_STATUS",
+      "name": "Delivery Receipts",
+      "description": "Users expect sent/delivered/read status on messages",
+      "check": "design_mentions_any",
+      "terms": ["delivery.*receipt", "read.*receipt", "sent.*deliver.*read", "message.*status", "ack", "acknowledgment", "delivery.*status", "seen"],
+      "severity": "medium",
+      "message": "No delivery receipt mechanism. Modern chat apps need sent/delivered/read status. This requires per-message acknowledgment tracking and efficient status fan-out."
+    },
+    {
+      "id": "CHAT_PERSISTENCE",
+      "name": "Message Persistence / History",
+      "description": "Messages must be durably stored and retrievable",
+      "check": "design_mentions_any",
+      "terms": ["message.*stor", "message.*persist", "chat.*history", "message.*database", "message.*archive", "conversation.*stor"],
+      "severity": "high",
+      "message": "No message persistence strategy. Chat messages must be durably stored for history retrieval. Consider time-series partitioning and hot/cold storage tiers for cost efficiency."
+    },
+    {
+      "id": "CHAT_REALTIME_PROTOCOL",
+      "name": "Real-Time Transport Protocol",
+      "description": "Chat requires persistent connections (WebSocket, SSE, MQTT) not HTTP polling",
+      "check": "component_or_tech_mentions_any",
+      "terms": ["websocket", "ws://", "wss://", "sse", "server.?sent.?event", "mqtt", "socket.io", "long.?poll", "signalr", "grpc.*stream"],
+      "severity": "high",
+      "message": "No real-time transport protocol. Chat systems need persistent connections (WebSocket, MQTT, SSE) for instant message delivery — HTTP polling wastes resources and adds latency."
+    }
+  ],
+  "recommended_patterns": [
+    {
+      "id": "CHAT_PRESENCE",
+      "name": "Online/Presence Status",
+      "description": "Users expect to see who is online/offline/typing",
+      "check": "design_mentions_any",
+      "terms": ["presence", "online.*status", "typing.*indicator", "last.*seen", "user.*status", "heartbeat"],
+      "severity": "low",
+      "message": "Consider adding presence/online status. Users expect to see who is online, last-seen timestamps, and typing indicators. Use heartbeat-based tracking with Redis for efficiency."
+    },
+    {
+      "id": "CHAT_FANOUT",
+      "name": "Group Message Fan-Out Strategy",
+      "description": "Group chats need efficient message distribution to all members",
+      "check": "design_mentions_any",
+      "terms": ["fan.?out", "broadcast", "group.*deliver", "pub.?sub", "channel.*distribute", "multicast"],
+      "severity": "low",
+      "message": "Consider defining a fan-out strategy for group messages. Fan-out-on-write (pre-deliver to all inboxes) vs fan-out-on-read (query at read time) have different cost/latency trade-offs."
+    }
+  ],
+  "anti_patterns": [
+    {
+      "id": "CHAT_ANTI_POLLING",
+      "name": "HTTP Polling for Messages",
+      "description": "Polling for new messages wastes resources and adds latency",
+      "check": "design_mentions_any",
+      "terms": ["poll.*for.*message", "http.*poll.*chat", "interval.*check.*new.*message"],
+      "severity": "high",
+      "message": "HTTP polling for chat messages is inefficient — each user generates constant requests even when idle. Switch to WebSocket/MQTT for push-based delivery."
+    }
+  ]
+}

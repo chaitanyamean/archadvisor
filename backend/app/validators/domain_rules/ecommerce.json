@@ -1,0 +1,74 @@
+{
+  "domain": "ecommerce",
+  "display_name": "E-Commerce Platform",
+  "keywords": ["e-commerce", "ecommerce", "online store", "shopping cart", "product catalog", "checkout", "order management", "marketplace", "storefront", "shopping platform"],
+  "mandatory_patterns": [
+    {
+      "id": "ECOM_CART_TTL",
+      "name": "Cart Expiration / TTL",
+      "description": "Shopping carts must have TTL to release reserved inventory",
+      "check": "design_mentions_any",
+      "terms": ["cart.*ttl", "cart.*expir", "cart.*timeout", "abandon.*cart", "session.*expir", "cart.*cleanup"],
+      "severity": "medium",
+      "message": "No cart expiration strategy. Abandoned carts hold reserved inventory indefinitely — add TTL-based cleanup (typically 15-30 minutes for reserved items)."
+    },
+    {
+      "id": "ECOM_INVENTORY_STRATEGY",
+      "name": "Inventory Reservation Strategy",
+      "description": "Must specify how inventory is reserved during checkout (optimistic vs pessimistic locking)",
+      "check": "design_mentions_any",
+      "terms": ["inventory.*reserv", "stock.*lock", "optimistic.*lock", "pessimistic.*lock", "inventory.*hold", "stock.*reserv", "decrement.*stock"],
+      "severity": "high",
+      "message": "No inventory reservation strategy. Must specify how stock is held during checkout — optimistic locking (check at payment) or pessimistic locking (reserve on add-to-cart) to prevent overselling."
+    },
+    {
+      "id": "ECOM_ORDER_STATE",
+      "name": "Order State Machine",
+      "description": "Orders need explicit state transitions (pending → paid → shipped → delivered)",
+      "check": "design_mentions_any",
+      "terms": ["order.*state", "order.*status", "state.*machine", "order.*lifecycle", "pending.*paid", "fulfillment", "shipped", "order.*transition"],
+      "severity": "high",
+      "message": "No order state machine. Orders need explicit state transitions (created → pending_payment → paid → processing → shipped → delivered → completed) with guards against invalid transitions."
+    },
+    {
+      "id": "ECOM_SEARCH",
+      "name": "Product Search / Catalog Service",
+      "description": "E-commerce needs full-text search with faceted filtering",
+      "check": "component_or_tech_mentions_any",
+      "terms": ["elasticsearch", "opensearch", "solr", "algolia", "typesense", "meilisearch", "search.*service", "catalog.*search", "full.?text"],
+      "severity": "medium",
+      "message": "No search engine detected. E-commerce platforms need full-text search with faceted filtering (Elasticsearch, OpenSearch, Algolia) — SQL LIKE queries won't scale."
+    }
+  ],
+  "recommended_patterns": [
+    {
+      "id": "ECOM_RECOMMENDATION",
+      "name": "Recommendation Engine",
+      "description": "Product recommendations drive significant revenue in e-commerce",
+      "check": "design_mentions_any",
+      "terms": ["recommend", "similar.*product", "also.*bought", "personali", "collaborative.*filter"],
+      "severity": "low",
+      "message": "Consider adding a recommendation engine. Product recommendations typically drive 10-30% of e-commerce revenue and are a common expectation."
+    },
+    {
+      "id": "ECOM_PRICING_SERVICE",
+      "name": "Pricing / Promotions Service",
+      "description": "Centralized pricing with promotion/coupon support",
+      "check": "design_mentions_any",
+      "terms": ["pricing.*service", "promoti", "coupon", "discount", "voucher", "promo.*code"],
+      "severity": "low",
+      "message": "Consider a centralized pricing/promotions service. Coupon codes, flash sales, and tiered pricing are complex enough to warrant a dedicated service."
+    }
+  ],
+  "anti_patterns": [
+    {
+      "id": "ECOM_ANTI_SYNC_INVENTORY",
+      "name": "Synchronous Inventory Check at Checkout",
+      "description": "Synchronous cross-service inventory calls during checkout create bottlenecks",
+      "check": "design_mentions_any",
+      "terms": ["synchronous.*inventory", "sync.*stock.*check", "blocking.*inventory.*call"],
+      "severity": "high",
+      "message": "Synchronous inventory checks during checkout create bottlenecks under load. Use eventual consistency with reservation-based approach or optimistic locking with conflict resolution."
+    }
+  ]
+}

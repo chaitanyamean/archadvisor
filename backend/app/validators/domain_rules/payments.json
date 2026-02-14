@@ -1,0 +1,74 @@
+{
+  "domain": "payments",
+  "display_name": "Payment Processing System",
+  "keywords": ["payment", "checkout", "transaction", "billing", "stripe", "payment gateway", "payment processing", "merchant", "pci", "credit card", "debit card"],
+  "mandatory_patterns": [
+    {
+      "id": "PAY_IDEMPOTENCY",
+      "name": "Idempotency Keys",
+      "description": "Payment operations must be idempotent to prevent double charges",
+      "check": "design_mentions_any",
+      "terms": ["idempoten", "idempotency key", "dedup", "exactly.?once", "unique.*request.*id"],
+      "severity": "critical",
+      "message": "No idempotency mechanism. Payment operations MUST be idempotent — network retries can cause double charges. Use idempotency keys on all payment endpoints."
+    },
+    {
+      "id": "PAY_AUDIT_TRAIL",
+      "name": "Transaction Audit Trail",
+      "description": "All payment events must be logged immutably for compliance and reconciliation",
+      "check": "design_mentions_any",
+      "terms": ["audit", "transaction log", "ledger", "event sourcing", "immutable log", "payment history", "reconcil"],
+      "severity": "high",
+      "message": "No transaction audit trail. Payment systems require an immutable log of all payment events for compliance, dispute resolution, and reconciliation."
+    },
+    {
+      "id": "PAY_PCI_COMPLIANCE",
+      "name": "PCI-DSS Compliance",
+      "description": "Systems handling card data must address PCI-DSS requirements",
+      "check": "design_mentions_any",
+      "terms": ["pci", "pci.?dss", "tokeniz", "vault", "payment token", "card vault", "compliance"],
+      "severity": "high",
+      "message": "No PCI-DSS compliance strategy. If handling card data, you must tokenize via a certified provider (Stripe, Braintree) or implement PCI-DSS controls."
+    },
+    {
+      "id": "PAY_DLQ",
+      "name": "Dead Letter Queue for Failed Payments",
+      "description": "Failed payment events must not be silently dropped",
+      "check": "design_mentions_any",
+      "terms": ["dead letter", "dlq", "failed.*queue", "retry.*queue", "poison.*queue", "error.*queue"],
+      "severity": "medium",
+      "message": "No dead letter queue for failed payments. Failed transaction events should be routed to a DLQ for investigation and manual retry, never silently dropped."
+    }
+  ],
+  "recommended_patterns": [
+    {
+      "id": "PAY_RECONCILIATION",
+      "name": "Reconciliation Process",
+      "description": "Regular reconciliation between internal records and payment provider",
+      "check": "design_mentions_any",
+      "terms": ["reconcil", "settlement", "balance check", "end.?of.?day", "batch.*verify"],
+      "severity": "low",
+      "message": "Consider adding a reconciliation process. Periodic comparison between your ledger and payment provider records catches discrepancies early."
+    },
+    {
+      "id": "PAY_WEBHOOK_VERIFY",
+      "name": "Webhook Signature Verification",
+      "description": "Payment provider webhooks must be verified to prevent spoofing",
+      "check": "design_mentions_any",
+      "terms": ["webhook.*verif", "signature.*verif", "hmac", "webhook.*secret", "callback.*auth"],
+      "severity": "low",
+      "message": "Consider webhook signature verification. Payment provider callbacks (Stripe, PayPal) must be cryptographically verified to prevent spoofed events."
+    }
+  ],
+  "anti_patterns": [
+    {
+      "id": "PAY_ANTI_RAW_CARD",
+      "name": "Storing Raw Card Numbers",
+      "description": "Never store raw PAN/CVV — use tokenization",
+      "check": "design_mentions_any",
+      "terms": ["store.*card.*number", "save.*pan", "persist.*credit.*card", "database.*card.*detail"],
+      "severity": "critical",
+      "message": "CRITICAL: Never store raw card numbers (PAN/CVV). This violates PCI-DSS and creates massive liability. Use tokenization via Stripe/Braintree/Adyen."
+    }
+  ]
+}

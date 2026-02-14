@@ -1,0 +1,74 @@
+{
+  "domain": "url_shortener",
+  "display_name": "URL Shortener / Link Shortening Service",
+  "keywords": ["url shortener", "short link", "link shortening", "tiny url", "bitly", "short url", "url shortening", "link shortener", "shorten url"],
+  "mandatory_patterns": [
+    {
+      "id": "URL_HASH_FUNCTION",
+      "name": "Hash/Encoding Function",
+      "description": "URL shorteners must specify a hash or encoding strategy (Base62, MD5+truncate, snowflake ID, etc.)",
+      "check": "component_or_tech_mentions_any",
+      "terms": ["base62", "base64", "md5", "sha", "hash", "snowflake", "nanoid", "uuid", "encode", "murmur"],
+      "severity": "high",
+      "message": "No hash/encoding strategy specified. URL shorteners need a deterministic method to generate short codes (Base62, MD5+truncate, Snowflake IDs, etc.)"
+    },
+    {
+      "id": "URL_COLLISION_HANDLING",
+      "name": "Collision Handling Strategy",
+      "description": "Must address what happens when two URLs hash to the same short code",
+      "check": "design_mentions_any",
+      "terms": ["collision", "duplicate", "retry", "unique constraint", "check exists", "bloom filter", "dedup"],
+      "severity": "medium",
+      "message": "No collision handling strategy. What happens when two URLs generate the same short code? Consider retry with salt, bloom filter pre-check, or DB unique constraints."
+    },
+    {
+      "id": "URL_READ_HEAVY",
+      "name": "Read-Heavy Caching",
+      "description": "URL shorteners are extremely read-heavy (100:1 read:write). Must have caching.",
+      "check": "component_type_exists",
+      "terms": ["cache", "redis", "memcached", "cdn", "cloudfront", "fastly"],
+      "severity": "high",
+      "message": "No caching layer detected. URL shorteners are 100:1 read:write ratio — a cache (Redis/Memcached) and CDN are essential for redirect latency."
+    },
+    {
+      "id": "URL_REDIRECT_LATENCY",
+      "name": "Redirect Latency Target",
+      "description": "301/302 redirects must be sub-50ms. Architecture must account for this.",
+      "check": "design_mentions_any",
+      "terms": ["redirect", "301", "302", "latency", "p99", "response time", "p50"],
+      "severity": "medium",
+      "message": "No redirect latency target specified. URL shorteners need sub-50ms p99 redirect latency — this drives the entire caching and deployment strategy."
+    }
+  ],
+  "recommended_patterns": [
+    {
+      "id": "URL_ANALYTICS",
+      "name": "Click Analytics Pipeline",
+      "description": "Most URL shorteners need click tracking (geo, device, referrer)",
+      "check": "design_mentions_any",
+      "terms": ["analytics", "click track", "click count", "statistics", "geo", "referrer", "tracking"],
+      "severity": "low",
+      "message": "Consider adding click analytics (geo, device, referrer tracking). This is a common requirement for URL shorteners and is hard to retrofit."
+    },
+    {
+      "id": "URL_EXPIRATION",
+      "name": "Link Expiration Strategy",
+      "description": "Should address whether/how links expire",
+      "check": "design_mentions_any",
+      "terms": ["expir", "ttl", "time to live", "cleanup", "purge", "retention"],
+      "severity": "low",
+      "message": "No link expiration strategy. Consider TTL-based expiration for temporary links and a cleanup job for expired entries."
+    }
+  ],
+  "anti_patterns": [
+    {
+      "id": "URL_ANTI_SEQUENTIAL",
+      "name": "Sequential IDs as Short Codes",
+      "description": "Using auto-increment IDs as short codes is predictable and a security risk",
+      "check": "design_mentions_any",
+      "terms": ["auto.?increment", "sequential.?id", "counter.?based", "auto_increment"],
+      "severity": "high",
+      "message": "Sequential/auto-increment IDs as short codes are predictable — attackers can enumerate all URLs. Use randomized encoding (Base62 of random ID, nanoid, etc.)."
+    }
+  ]
+}

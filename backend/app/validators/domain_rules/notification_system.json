@@ -1,0 +1,74 @@
+{
+  "domain": "notification_system",
+  "display_name": "Notification / Alert System",
+  "keywords": ["notification", "alert system", "push notification", "email notification", "sms notification", "in-app notification", "notification service", "notify", "notification platform"],
+  "mandatory_patterns": [
+    {
+      "id": "NOTIF_MULTI_CHANNEL",
+      "name": "Multi-Channel Delivery",
+      "description": "Notification systems should support multiple delivery channels (push, email, SMS, in-app)",
+      "check": "design_mentions_any",
+      "terms": ["push.*notif", "email", "sms", "in.?app", "mobile.*push", "apns", "fcm", "twilio", "sendgrid", "ses", "multi.?channel"],
+      "severity": "high",
+      "message": "No multi-channel delivery. Notification systems need at least 2 channels (push, email, SMS, in-app). Users expect channel preferences and fallback delivery."
+    },
+    {
+      "id": "NOTIF_PREFERENCES",
+      "name": "User Notification Preferences",
+      "description": "Users must be able to control what notifications they receive and through which channels",
+      "check": "design_mentions_any",
+      "terms": ["preference", "opt.?in", "opt.?out", "unsubscribe", "notification.*setting", "channel.*preference", "do.*not.*disturb", "quiet.*hour"],
+      "severity": "medium",
+      "message": "No user preference management. Users must control notification frequency, channels, and opt-out. Without this, you'll face spam complaints and regulatory issues (CAN-SPAM, GDPR)."
+    },
+    {
+      "id": "NOTIF_RATE_LIMIT",
+      "name": "Per-User Rate Limiting / Throttling",
+      "description": "Must prevent notification flooding to individual users",
+      "check": "design_mentions_any",
+      "terms": ["rate.*limit", "throttl", "flood.*protect", "notification.*limit", "per.*user.*limit", "digest", "batch.*notif"],
+      "severity": "high",
+      "message": "No per-user rate limiting. Without throttling, a single event can trigger hundreds of notifications to one user. Implement per-user rate limits and digest/batching for high-frequency events."
+    },
+    {
+      "id": "NOTIF_TEMPLATE",
+      "name": "Notification Template Engine",
+      "description": "Notifications need templated content for consistency and localization",
+      "check": "design_mentions_any",
+      "terms": ["template", "notification.*template", "message.*template", "locali", "i18n", "content.*render"],
+      "severity": "medium",
+      "message": "No template engine for notifications. Hardcoded notification text doesn't scale — use templates with variable substitution for consistency, A/B testing, and localization."
+    }
+  ],
+  "recommended_patterns": [
+    {
+      "id": "NOTIF_DELIVERY_TRACKING",
+      "name": "Delivery Status Tracking",
+      "description": "Track whether notifications were delivered, opened, and clicked",
+      "check": "design_mentions_any",
+      "terms": ["delivery.*track", "open.*rate", "click.*track", "delivery.*status", "bounce", "delivery.*report"],
+      "severity": "low",
+      "message": "Consider delivery tracking. Knowing delivery rates, open rates, and bounce rates helps debug issues and optimize notification effectiveness."
+    },
+    {
+      "id": "NOTIF_PRIORITY",
+      "name": "Priority Queuing",
+      "description": "Critical notifications (security alerts) should jump the queue",
+      "check": "design_mentions_any",
+      "terms": ["priority.*queue", "urgent", "critical.*notif", "priority.*level", "high.*priority"],
+      "severity": "low",
+      "message": "Consider priority queuing. Security alerts and OTP codes should bypass normal queuing to ensure instant delivery, while marketing notifications can be batched."
+    }
+  ],
+  "anti_patterns": [
+    {
+      "id": "NOTIF_ANTI_SYNC_SEND",
+      "name": "Synchronous Notification Sending",
+      "description": "Sending notifications synchronously in the request path blocks the user",
+      "check": "design_mentions_any",
+      "terms": ["synchronous.*send", "sync.*notif", "send.*in.*request.*path", "blocking.*notification"],
+      "severity": "high",
+      "message": "Synchronous notification sending blocks the triggering request. Notifications should be queued asynchronously (Kafka, SQS, RabbitMQ) and processed by dedicated workers."
+    }
+  ]
+}
