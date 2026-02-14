@@ -11,14 +11,9 @@ Give it your system requirements. Get back a complete architecture document — 
 
 ## Demo
 
-https://github.com/chaitanyamean/archadvisor/blob/main/archadvisor-presentation.pptx.mp4
 
 https://www.loom.com/share/2eaa7a5acc234c0fab5a7d0529117484
 
-https://cdn.loom.com/sessions/thumbnails/2eaa7a5acc234c0fab5a7d0529117484.jpg
-
-
-[![Demo Video](https://cdn.loom.com/sessions/thumbnails/2eaa7a5acc234c0fab5a7d0529117484.jpg)](https://www.loom.com/share/2eaa7a5acc234c0fab5a7d0529117484)
 
 
 
