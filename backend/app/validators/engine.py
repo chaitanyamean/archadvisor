@@ -27,6 +27,7 @@ from app.validators.consistency_validator import ConsistencyValidator
 from app.validators.contradiction_validator import ContradictionValidator
 from app.validators.operational_complexity_validator import OperationalComplexityValidator
 from app.validators.missing_requirement_validator import MissingRequirementValidator
+from app.validators.domain_pattern_validator import DomainPatternValidator
 
 logger = structlog.get_logger()
 
@@ -60,6 +61,7 @@ class ValidationEngine:
             ContradictionValidator(),    # Cross-field contradiction detection
             OperationalComplexityValidator(),  # Over-engineering detection
             MissingRequirementValidator(),     # Requirements coverage
+            DomainPatternValidator()           # Domain-specific pattern checks
         ]
 
     def validate(self, design: Union[dict, str], requirements: str = "") -> ValidationReport:
