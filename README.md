@@ -93,7 +93,7 @@ All steps stream real-time progress to the browser via WebSocket.
 ### 1. Clone and configure
 
 ```bash
-git clone https://github.com/yourusername/archadvisor.git
+git clone https://github.com/chaitanyamean/archadvisor.git
 cd archadvisor
 cp .env.example .env
 ```
