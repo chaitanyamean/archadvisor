@@ -241,6 +241,27 @@ async def generate_docs_node(state: ArchAdvisorState) -> dict:
     if state.get("validation_score") is not None:
         doc_output["validation_score"] = state["validation_score"]
         doc_output["validation_passed"] = state.get("validation_passed", False)
+        # Extract findings for the rendered document
+        validation_report_json = state.get("validation_report", "")
+        if validation_report_json:
+            try:
+                report_data = json.loads(validation_report_json)
+                doc_output["validation_summary"] = report_data.get("summary", {})
+                doc_output["validation_verdict"] = report_data.get("verdict", "")
+                # Include top critical/high findings for visibility
+                findings = []
+                for err in report_data.get("errors", []):
+                    if err.get("severity") in ("critical", "high"):
+                        findings.append({
+                            "severity": err["severity"],
+                            "code": err.get("code", ""),
+                            "message": err.get("message", ""),
+                            "category": err.get("category"),
+                            "evidence": err.get("evidence"),
+                        })
+                doc_output["validation_findings"] = findings
+            except (json.JSONDecodeError, KeyError):
+                pass
 
     doc_json = json.dumps(doc_output, indent=2)
 
