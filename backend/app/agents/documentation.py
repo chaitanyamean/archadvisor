@@ -267,38 +267,81 @@ class DocumentationAgent(BaseAgent):
             heading = "#" * (level + 1) + " " + section["heading"]
             lines.append(f"{heading}\n\n{section['content']}\n")
 
-        # Diagrams
-        diagrams = parsed_output.get("diagrams", [])
-        if diagrams:
-            lines.append("## Architecture Diagrams\n")
-            for diagram in diagrams:
-                lines.append(f"### {diagram['title']}\n")
-                lines.append(f"```mermaid\n{diagram['mermaid_code']}\n```\n")
-
-        # Validation Score (if present from state metadata)
-        validation_score = parsed_output.get("validation_score")
-        if validation_score is not None:
-            passed = parsed_output.get("validation_passed", False)
-            lines.append("## Design Validation\n")
-            lines.append(f"**Score**: {validation_score}/100 | **Status**: {'PASSED' if passed else 'FAILED'}\n")
-            unresolved = parsed_output.get("validation_unresolved", "")
-            if unresolved:
-                lines.append(f"**Unresolved Findings**: {unresolved}\n")
-
-        # ADRs — only render if not already included in a section
-        decisions = parsed_output.get("decision_log", [])
-        sections_text = " ".join(s.get("content", "") for s in parsed_output.get("sections", []))
-        has_adrs_in_sections = "ADR-" in sections_text
-        if decisions and not has_adrs_in_sections:
-            lines.append("## Architecture Decision Records\n")
-            for adr in decisions:
-                lines.append(f"### {adr['id']}: {adr['title']}\n")
-                lines.append(f"**Status**: {adr['status']}\n")
-                lines.append(f"**Context**: {adr['context']}\n")
-                lines.append(f"**Decision**: {adr['decision']}\n")
-                lines.append(f"**Consequences**: {adr['consequences']}\n")
+        self._render_diagrams(lines, parsed_output)
+        self._render_validation(lines, parsed_output)
+        self._render_adrs(lines, parsed_output)
 
         return "\n".join(lines)
+      
+    @staticmethod
+    def _render_diagrams(lines: list[str], parsed_output: dict) -> None:
+        """Render architecture diagrams section."""
+        diagrams = parsed_output.get("diagrams", [])
+        if not diagrams:
+            return
+        lines.append("## Architecture Diagrams\n")
+        for diagram in diagrams:
+            lines.append(f"### {diagram['title']}\n")
+            lines.append(f"```mermaid\n{diagram['mermaid_code']}\n```\n")
+
+    @staticmethod
+    def _render_validation(lines: list[str], parsed_output: dict) -> None:
+        """Render validation score, severity breakdown, and critical/high findings."""
+        validation_score = parsed_output.get("validation_score")
+        if validation_score is None:
+            return
+
+        passed = parsed_output.get("validation_passed", False)
+        summary = parsed_output.get("validation_summary", {})
+        verdict = parsed_output.get("validation_verdict", "")
+        findings = parsed_output.get("validation_findings", [])
+
+        lines.append("## Design Validation\n")
+        lines.append(f"**Score**: {validation_score}/100 | **Status**: {'PASSED' if passed else 'FAILED'}\n")
+
+        # Severity breakdown table
+        if summary:
+            lines.append("### Severity Breakdown\n")
+            lines.append("| Severity | Count |")
+            lines.append("|----------|-------|")
+            for sev in ("critical", "high", "medium", "low"):
+                count = summary.get(sev, 0)
+                if count > 0:
+                    lines.append(f"| {sev.upper()} | {count} |")
+            lines.append("")
+
+        # Critical and high findings table
+        if findings:
+            lines.append("### Critical & High Findings\n")
+            lines.append("| Severity | Finding | Source |")
+            lines.append("|----------|---------|--------|")
+            for f in findings:
+                sev = f["severity"].upper()
+                msg = f["message"][:120]
+                source = f.get("evidence", "—") if f.get("category") == "domain_pattern" else "General"
+                lines.append(f"| {sev} | {msg} | {source} |")
+            lines.append("")
+
+        if verdict:
+            lines.append(f"> {verdict}\n")
+
+    @staticmethod
+    def _render_adrs(lines: list[str], parsed_output: dict) -> None:
+        """Render Architecture Decision Records if not already in a section."""
+        decisions = parsed_output.get("decision_log", [])
+        if not decisions:
+            return
+        sections_text = " ".join(s.get("content", "") for s in parsed_output.get("sections", []))
+        if "ADR-" in sections_text:
+            return
+        lines.append("## Architecture Decision Records\n")
+        for adr in decisions:
+            lines.append(f"### {adr['id']}: {adr['title']}\n")
+            lines.append(f"**Status**: {adr['status']}\n")
+            lines.append(f"**Context**: {adr['context']}\n")
+            lines.append(f"**Decision**: {adr['decision']}\n")
+            lines.append(f"**Consequences**: {adr['consequences']}\n")
+
 
     def _generate_summary(self, parsed_output: dict) -> str:
         n_sections = len(parsed_output.get("sections", []))
