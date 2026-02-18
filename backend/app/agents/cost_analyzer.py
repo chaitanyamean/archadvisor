@@ -74,6 +74,7 @@ class CostAnalyzerAgent(BaseAgent):
             model_name=settings.COST_ANALYZER_MODEL,
             temperature=0.2,
             max_output_tokens=8192,
+            json_mode=True,
         )
 
     def get_system_prompt(self) -> str:
