@@ -136,12 +136,12 @@ async def create_session(
     # Rate limiting
     client_ip = request.client.host if request.client else "unknown"
     if not rate_limiter.allow_request(client_ip):
-        remaining = rate_limiter.remaining_tokens(client_ip)
+        remaining = rate_limiter.remaining(client_ip)
         raise HTTPException(
             status_code=429,
             detail={
                 "error": "Rate limit exceeded",
-                "message": f"Maximum {rate_limiter.max_tokens} sessions per hour. Try again later.",
+                "message": f"Maximum {rate_limiter.max_requests} sessions per day. Try again later.",
                 "remaining": remaining,
                 "retry_after_seconds": int(rate_limiter.reset_time(client_ip)),
             },
@@ -156,6 +156,7 @@ async def create_session(
         requirements=request_body.requirements,
         preferences=request_body.preferences.model_dump(),
     )
+    initial_state["client_ip"] = client_ip
 
     session_manager = request.app.state.session_manager
     await session_manager.create(session_id, initial_state)
@@ -352,16 +353,17 @@ async def list_sessions(
     request: Request,
     limit: int = Query(default=20, ge=1, le=100),
 ):
-    """List recent architecture sessions."""
+    """List recent architecture sessions for the requesting client's IP."""
+    client_ip = request.client.host if request.client else "unknown"
     session_manager = request.app.state.session_manager
-    session_ids = await session_manager.list_recent(limit)
+    session_ids = await session_manager.list_recent(limit * 5)  # fetch more to filter
 
     sessions = []
     for sid in session_ids:
         if isinstance(sid, bytes):
             sid = sid.decode()
         session = await session_manager.get(sid)
-        if session:
+        if session and session.get("client_ip") == client_ip:
             status = session.get("status", "designing")
             sessions.append(
                 SessionStatusResponse(
@@ -377,5 +379,7 @@ async def list_sessions(
                     completed_at=session.get("completed_at"),
                 )
             )
+            if len(sessions) >= limit:
+                break
 
     return sessions

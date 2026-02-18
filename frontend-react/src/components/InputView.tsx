@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { api } from '../services/api';
+import { api, ApiError } from '../services/api';
 import { AGENTS } from '../types/constants';
 import type { Template } from '../types/api';
 
@@ -13,6 +13,7 @@ export function InputView({ onSessionCreated, preferences }: InputViewProps) {
   const [requirements, setRequirements] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [rateLimited, setRateLimited] = useState<{ message: string; retryAfter: number } | null>(null);
 
   useEffect(() => {
     api.templates().then(setTemplates).catch(() => {});
@@ -28,7 +29,16 @@ export function InputView({ onSessionCreated, preferences }: InputViewProps) {
       const resp = await api.createSession(requirements, preferences);
       onSessionCreated(resp.session_id);
     } catch (e: any) {
-      setError(e.message || 'Failed to create session');
+      if (e instanceof ApiError && e.status === 429) {
+        const retryAfter = e.detail?.retry_after_seconds ?? 0;
+        const hours = Math.ceil(retryAfter / 3600);
+        setRateLimited({
+          message: e.detail?.message ?? 'Daily limit reached. Try again later.',
+          retryAfter: hours,
+        });
+      } else {
+        setError(e.message || 'Failed to create session');
+      }
     } finally {
       setLoading(false);
     }
@@ -72,18 +82,45 @@ export function InputView({ onSessionCreated, preferences }: InputViewProps) {
         </div>
       )}
 
+      {/* Rate limit banner */}
+      {rateLimited && (
+        <div className="mb-6 p-4 rounded-xl bg-amber-50 border border-amber-200 flex items-start gap-3">
+          <span className="text-2xl leading-none mt-0.5">&#x23F3;</span>
+          <div>
+            <p className="font-semibold text-amber-800">{rateLimited.message}</p>
+            <p className="text-sm text-amber-600 mt-1">
+              You can generate up to 3 architectures per day.
+              {rateLimited.retryAfter > 0 && ` Try again in ~${rateLimited.retryAfter}h.`}
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Requirements textarea */}
       <div className="mb-4">
         <textarea
           value={requirements}
-          onChange={(e) => setRequirements(e.target.value)}
+          onChange={(e) => setRequirements(e.target.value.slice(0, MAX_LENGTH))}
           rows={10}
+          maxLength={MAX_LENGTH}
           placeholder="Describe your system requirements in detail...&#10;&#10;Example: Design a real-time notification system for an e-commerce platform with 50M users, supporting push, email, SMS, and in-app channels..."
-          className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-y"
+          className={`w-full rounded-xl border px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:border-transparent resize-y ${
+            requirements.length >= MAX_LENGTH
+              ? 'border-red-400 focus:ring-red-500'
+              : 'border-slate-300 focus:ring-blue-500'
+          }`}
         />
         <div className="flex justify-between items-center mt-2">
-          <span className={`text-xs ${requirements.length < 50 ? 'text-slate-400' : 'text-green-600'}`}>
-            {requirements.length}/50 characters minimum
+          <span className={`text-xs ${
+            requirements.length < 50
+              ? 'text-slate-400'
+              : requirements.length >= MAX_LENGTH
+                ? 'text-red-600'
+                : 'text-green-600'
+          }`}>
+            {requirements.length}/{MAX_LENGTH} characters
+            {requirements.length < 50 && ' (50 minimum)'}
+            {requirements.length >= MAX_LENGTH && ' (limit reached)'}
           </span>
           {error && <span className="text-xs text-red-600">{error}</span>}
         </div>
@@ -93,7 +130,7 @@ export function InputView({ onSessionCreated, preferences }: InputViewProps) {
       <div className="text-center mb-12">
         <button
           onClick={handleGenerate}
-          disabled={requirements.length < 50 || loading}
+          disabled={requirements.length < 50 || requirements.length > MAX_LENGTH || loading || !!rateLimited}
           className="px-8 py-3 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-semibold rounded-xl text-lg transition-colors shadow-lg shadow-blue-600/20"
         >
           {loading ? (

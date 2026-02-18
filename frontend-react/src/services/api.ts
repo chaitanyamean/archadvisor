@@ -8,14 +8,37 @@ import type {
 
 const BASE = '/api/v1';
 
+export class ApiError extends Error {
+  status: number;
+  statusText: string;
+  detail: any;
+
+  constructor(status: number, statusText: string, detail: any) {
+    const msg =
+      typeof detail === 'object' && detail?.message
+        ? detail.message
+        : `${status} ${statusText}`;
+    super(msg);
+    this.status = status;
+    this.statusText = statusText;
+    this.detail = detail;
+  }
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
     headers: { 'Content-Type': 'application/json' },
     ...init,
   });
   if (!res.ok) {
-    const body = await res.text().catch(() => '');
-    throw new Error(`${res.status} ${res.statusText}: ${body}`);
+    let detail: any;
+    try {
+      const body = await res.json();
+      detail = body.detail ?? body;
+    } catch {
+      detail = await res.text().catch(() => '');
+    }
+    throw new ApiError(res.status, res.statusText, detail);
   }
   return res.json();
 }

@@ -1,4 +1,4 @@
-"""Rate limiter — token bucket implementation for API requests."""
+"""Rate limiter — sliding window counter for per-IP session limits."""
 
 import time
 from collections import defaultdict
@@ -7,66 +7,56 @@ from typing import Optional
 from app.config import get_settings
 
 
-class TokenBucketRateLimiter:
-    """In-memory token bucket rate limiter.
+class SlidingWindowRateLimiter:
+    """In-memory sliding window rate limiter.
 
-    For production with multiple instances, swap to Redis-backed implementation.
+    Tracks timestamps of requests per key (IP address).
+    Allows up to `max_requests` within a rolling `window_seconds` window.
     """
 
     def __init__(
         self,
-        max_tokens: Optional[int] = None,
-        refill_seconds: Optional[int] = None,
+        max_requests: Optional[int] = None,
+        window_seconds: Optional[int] = None,
     ):
         settings = get_settings()
-        self.max_tokens = max_tokens or settings.RATE_LIMIT_MAX_SESSIONS
-        self.refill_seconds = refill_seconds or settings.RATE_LIMIT_WINDOW_SECONDS
-        self._buckets: dict = defaultdict(
-            lambda: {"tokens": self.max_tokens, "last_refill": time.time()}
-        )
+        self.max_requests = max_requests or settings.RATE_LIMIT_MAX_SESSIONS
+        self.window_seconds = window_seconds or settings.RATE_LIMIT_WINDOW_SECONDS
+        self._timestamps: dict[str, list[float]] = defaultdict(list)
 
-    def allow_request(self, key: str = "global") -> bool:
-        """Check if a request is allowed and consume a token.
+    def _prune(self, key: str) -> None:
+        """Remove timestamps outside the current window."""
+        cutoff = time.time() - self.window_seconds
+        self._timestamps[key] = [
+            ts for ts in self._timestamps[key] if ts > cutoff
+        ]
 
-        Args:
-            key: Rate limit key (e.g., IP address, API key, or "global")
+    def allow_request(self, key: str) -> bool:
+        """Check if a request is allowed and record it.
 
-        Returns:
-            True if request is allowed, False if rate limited
+        Returns True if under the limit, False if rate limited.
         """
-        bucket = self._buckets[key]
-        now = time.time()
+        self._prune(key)
 
-        # Calculate token refill
-        elapsed = now - bucket["last_refill"]
-        tokens_to_add = int(elapsed / self.refill_seconds * self.max_tokens)
-
-        if tokens_to_add > 0:
-            bucket["tokens"] = min(self.max_tokens, bucket["tokens"] + tokens_to_add)
-            bucket["last_refill"] = now
-
-        # Check and consume
-        if bucket["tokens"] > 0:
-            bucket["tokens"] -= 1
+        if len(self._timestamps[key]) < self.max_requests:
+            self._timestamps[key].append(time.time())
             return True
 
         return False
 
-    def remaining_tokens(self, key: str = "global") -> int:
-        """Get remaining tokens for a key without consuming."""
-        bucket = self._buckets.get(key)
-        if bucket is None:
-            return self.max_tokens
-        return bucket["tokens"]
+    def remaining(self, key: str) -> int:
+        """Get remaining requests allowed in the current window."""
+        self._prune(key)
+        return max(0, self.max_requests - len(self._timestamps[key]))
 
-    def reset_time(self, key: str = "global") -> float:
-        """Get seconds until next token refill."""
-        bucket = self._buckets.get(key)
-        if bucket is None:
+    def reset_time(self, key: str) -> float:
+        """Seconds until the oldest request in the window expires."""
+        self._prune(key)
+        if not self._timestamps[key]:
             return 0
-        elapsed = time.time() - bucket["last_refill"]
-        return max(0, self.refill_seconds / self.max_tokens - elapsed)
+        oldest = self._timestamps[key][0]
+        return max(0, (oldest + self.window_seconds) - time.time())
 
 
 # Module-level singleton
-rate_limiter = TokenBucketRateLimiter()
+rate_limiter = SlidingWindowRateLimiter()

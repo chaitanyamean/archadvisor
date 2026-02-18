@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "info"
 
     # Rate Limiting
-    RATE_LIMIT_MAX_SESSIONS: int = 10
+    RATE_LIMIT_MAX_SESSIONS: int = 3
     RATE_LIMIT_WINDOW_SECONDS: int = 3600
 
     # Agent Config
