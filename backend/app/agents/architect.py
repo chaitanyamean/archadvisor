@@ -120,6 +120,7 @@ class ArchitectAgent(BaseAgent):
             model_name=settings.ARCHITECT_MODEL,
             temperature=0.5,
             max_output_tokens=8192,
+            json_mode=True,
         )
 
     def get_system_prompt(self) -> str:

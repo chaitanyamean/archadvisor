@@ -188,37 +188,68 @@ async def architect_revise_node(state: ArchAdvisorState) -> dict:
     }
 
 
+# async def cost_analysis_node(state: ArchAdvisorState) -> dict:
+#     """Cost Analyzer estimates infrastructure costs."""
+#     cb = event_bus.create_callback(state["session_id"])
+#     await cb(
+#         WorkflowProgressEvent(
+#             step=4,
+#             total_steps=5,
+#             status="costing",
+#             message="Cost Analyzer is estimating infrastructure costs across cloud providers...",
+#         ).model_dump()
+#     )
+
+#     result = await _cost_analyzer.run(state, cb)
+#     cost_json = json.dumps(result["output"], indent=2)
+
+#     message = AgentMessage(
+#         agent="cost_analyzer",
+#         role="Cost Analyzer",
+#         summary=_cost_analyzer._generate_summary(result["output"]),
+#         raw_output=cost_json,
+#         timestamp=result["metadata"]["timestamp"],
+#         duration_seconds=result["metadata"]["duration_seconds"],
+#         model=result["metadata"]["model"],
+#         cost_usd=result["metadata"]["cost_usd"],
+#     )
+
+#     return {
+#         "cost_analysis": cost_json,
+#         "status": "documenting",
+#         "messages": state["messages"] + [message],
+#         "total_cost_usd": state["total_cost_usd"] + result["metadata"]["cost_usd"],
+#     }
+
 async def cost_analysis_node(state: ArchAdvisorState) -> dict:
-    """Cost Analyzer estimates infrastructure costs."""
+    """Cost Analyzer estimates infrastructure costs. Currently disabled."""
     cb = event_bus.create_callback(state["session_id"])
     await cb(
         WorkflowProgressEvent(
             step=4,
             total_steps=5,
             status="costing",
-            message="Cost Analyzer is estimating infrastructure costs across cloud providers...",
+            message="Cost analysis skipped (temporarily disabled).",
         ).model_dump()
     )
 
-    result = await _cost_analyzer.run(state, cb)
-    cost_json = json.dumps(result["output"], indent=2)
-
+    logger.info("cost_analysis_skipped", session_id=state["session_id"])
+    fallback = {"note": "Cost analysis temporarily disabled", "scale_tiers": [], "cost_optimization_tips": [], "cheapest_path": {}, "scaling_cost_projection": {}}
     message = AgentMessage(
         agent="cost_analyzer",
         role="Cost Analyzer",
-        summary=_cost_analyzer._generate_summary(result["output"]),
-        raw_output=cost_json,
-        timestamp=result["metadata"]["timestamp"],
-        duration_seconds=result["metadata"]["duration_seconds"],
-        model=result["metadata"]["model"],
-        cost_usd=result["metadata"]["cost_usd"],
+        summary="Cost analysis skipped.",
+        raw_output=json.dumps(fallback),
+        timestamp=datetime.utcnow().isoformat(),
+        duration_seconds=0,
+        model="N/A",
+        cost_usd=0,
     )
-
     return {
-        "cost_analysis": cost_json,
+        "cost_analysis": json.dumps(fallback),
         "status": "documenting",
         "messages": state["messages"] + [message],
-        "total_cost_usd": state["total_cost_usd"] + result["metadata"]["cost_usd"],
+        "total_cost_usd": state["total_cost_usd"],
     }
 
 

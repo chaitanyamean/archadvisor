@@ -79,7 +79,8 @@ class DocumentationAgent(BaseAgent):
             role="Documentation",
             model_name=settings.DOCUMENTATION_MODEL,
             temperature=0.4,
-            max_output_tokens=16000,
+            max_output_tokens=16384,
+            json_mode=True,
         )
 
     def get_system_prompt(self) -> str:

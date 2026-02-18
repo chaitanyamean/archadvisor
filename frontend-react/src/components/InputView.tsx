@@ -18,6 +18,22 @@ export function InputView({ onSessionCreated, preferences }: InputViewProps) {
     api.templates().then(setTemplates).catch(() => {});
   }, []);
 
+  const MAX_LENGTH = 2000;
+
+  const handleGenerate = async () => {
+    if (requirements.length < 50 || requirements.length > MAX_LENGTH) return;
+    setLoading(true);
+    setError('');
+    try {
+      const resp = await api.createSession(requirements, preferences);
+      onSessionCreated(resp.session_id);
+    } catch (e: any) {
+      setError(e.message || 'Failed to create session');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleGenerate = async () => {
     if (requirements.length < 50) return;
     setLoading(true);

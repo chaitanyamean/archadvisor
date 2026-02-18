@@ -67,6 +67,7 @@ class DevilsAdvocateAgent(BaseAgent):
             model_name=settings.DEVILS_ADVOCATE_MODEL,
             temperature=0.3,
             max_output_tokens=4096,
+            json_mode=True,
         )
 
     def get_system_prompt(self) -> str:

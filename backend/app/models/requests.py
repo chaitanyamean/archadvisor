@@ -19,7 +19,7 @@ class CreateSessionRequest(BaseModel):
     requirements: str = Field(
         ...,
         min_length=50,
-        max_length=10000,
+        max_length=2000,
         description="System requirements in natural language",
         examples=[
             "Design a real-time notification system for an e-commerce platform "
