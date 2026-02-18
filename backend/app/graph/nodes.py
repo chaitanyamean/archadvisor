@@ -1,6 +1,7 @@
 """LangGraph node functions — each wraps an agent execution and updates state."""
 
 import json
+from datetime import datetime
 from typing import Callable, Awaitable, Optional
 
 import structlog
@@ -33,6 +34,7 @@ _documentation = DocumentationAgent()
 
 async def retrieve_context_node(state: ArchAdvisorState) -> dict:
     """Retrieve similar past architectures from ChromaDB (RAG)."""
+    logger.info("stage_started", stage="retrieve_context", step="1/5", session_id=state["session_id"])
     cb = event_bus.create_callback(state["session_id"])
     await cb(
         WorkflowProgressEvent(
@@ -57,6 +59,7 @@ async def retrieve_context_node(state: ArchAdvisorState) -> dict:
 
 async def architect_design_node(state: ArchAdvisorState) -> dict:
     """Architect proposes initial design."""
+    logger.info("stage_started", stage="architect_design", step="2/5", session_id=state["session_id"])
     cb = event_bus.create_callback(state["session_id"])
     await cb(
         WorkflowProgressEvent(
@@ -93,6 +96,7 @@ async def architect_design_node(state: ArchAdvisorState) -> dict:
 
 async def devils_advocate_review_node(state: ArchAdvisorState) -> dict:
     """Devil's Advocate reviews the current design."""
+    logger.info("stage_started", stage="devils_advocate_review", step="3/5", round=state["debate_round"], session_id=state["session_id"])
     cb = event_bus.create_callback(state["session_id"])
     round_num = state["debate_round"]
 
@@ -155,6 +159,7 @@ async def devils_advocate_review_node(state: ArchAdvisorState) -> dict:
 
 async def architect_revise_node(state: ArchAdvisorState) -> dict:
     """Architect revises design based on Devil's Advocate feedback."""
+    logger.info("stage_started", stage="architect_revise", step="3/5", round=state["debate_round"], session_id=state["session_id"])
     cb = event_bus.create_callback(state["session_id"])
     await cb(
         WorkflowProgressEvent(
@@ -188,41 +193,9 @@ async def architect_revise_node(state: ArchAdvisorState) -> dict:
     }
 
 
-# async def cost_analysis_node(state: ArchAdvisorState) -> dict:
-#     """Cost Analyzer estimates infrastructure costs."""
-#     cb = event_bus.create_callback(state["session_id"])
-#     await cb(
-#         WorkflowProgressEvent(
-#             step=4,
-#             total_steps=5,
-#             status="costing",
-#             message="Cost Analyzer is estimating infrastructure costs across cloud providers...",
-#         ).model_dump()
-#     )
-
-#     result = await _cost_analyzer.run(state, cb)
-#     cost_json = json.dumps(result["output"], indent=2)
-
-#     message = AgentMessage(
-#         agent="cost_analyzer",
-#         role="Cost Analyzer",
-#         summary=_cost_analyzer._generate_summary(result["output"]),
-#         raw_output=cost_json,
-#         timestamp=result["metadata"]["timestamp"],
-#         duration_seconds=result["metadata"]["duration_seconds"],
-#         model=result["metadata"]["model"],
-#         cost_usd=result["metadata"]["cost_usd"],
-#     )
-
-#     return {
-#         "cost_analysis": cost_json,
-#         "status": "documenting",
-#         "messages": state["messages"] + [message],
-#         "total_cost_usd": state["total_cost_usd"] + result["metadata"]["cost_usd"],
-#     }
-
 async def cost_analysis_node(state: ArchAdvisorState) -> dict:
     """Cost Analyzer estimates infrastructure costs. Currently disabled."""
+    logger.info("stage_started", stage="cost_analysis", step="4/5", session_id=state["session_id"])
     cb = event_bus.create_callback(state["session_id"])
     await cb(
         WorkflowProgressEvent(
@@ -255,6 +228,7 @@ async def cost_analysis_node(state: ArchAdvisorState) -> dict:
 
 async def generate_docs_node(state: ArchAdvisorState) -> dict:
     """Documentation agent produces the final architecture document."""
+    logger.info("stage_started", stage="generate_docs", step="5/5", session_id=state["session_id"])
     cb = event_bus.create_callback(state["session_id"])
     await cb(
         WorkflowProgressEvent(
@@ -265,65 +239,91 @@ async def generate_docs_node(state: ArchAdvisorState) -> dict:
         ).model_dump()
     )
 
-    result = await _documentation.run(state, cb)
+    try:
+        result = await _documentation.run(state, cb)
 
-    # Inject validation score into doc output for rendering
-    doc_output = result["output"]
-    if state.get("validation_score") is not None:
-        doc_output["validation_score"] = state["validation_score"]
-        doc_output["validation_passed"] = state.get("validation_passed", False)
-        # Extract findings for the rendered document
-        validation_report_json = state.get("validation_report", "")
-        if validation_report_json:
-            try:
-                report_data = json.loads(validation_report_json)
-                doc_output["validation_summary"] = report_data.get("summary", {})
-                doc_output["validation_verdict"] = report_data.get("verdict", "")
-                # Include top critical/high findings for visibility
-                findings = []
-                for err in report_data.get("errors", []):
-                    if err.get("severity") in ("critical", "high"):
-                        findings.append({
-                            "severity": err["severity"],
-                            "code": err.get("code", ""),
-                            "message": err.get("message", ""),
-                            "category": err.get("category"),
-                            "evidence": err.get("evidence"),
-                        })
-                doc_output["validation_findings"] = findings
-            except (json.JSONDecodeError, KeyError):
-                pass
+        # Inject validation score + findings into doc output for rendering
+        doc_output = result["output"]
+        _inject_validation_data(doc_output, state)
 
-    doc_json = json.dumps(doc_output, indent=2)
+        doc_json = json.dumps(doc_output, indent=2)
+        rendered_md = _documentation.render_markdown(doc_output)
+        diagrams = result["output"].get("diagrams", [])
 
-    # Render to markdown
-    rendered_md = _documentation.render_markdown(doc_output)
+        message = AgentMessage(
+            agent="documentation",
+            role="Documentation",
+            summary=_documentation._generate_summary(result["output"]),
+            raw_output=doc_json,
+            timestamp=result["metadata"]["timestamp"],
+            duration_seconds=result["metadata"]["duration_seconds"],
+            model=result["metadata"]["model"],
+            cost_usd=result["metadata"]["cost_usd"],
+        )
 
-    # Extract diagrams
-    diagrams = result["output"].get("diagrams", [])
+        return {
+            "final_document": doc_json,
+            "rendered_markdown": rendered_md,
+            "mermaid_diagrams": diagrams,
+            "status": "complete",
+            "completed_at": datetime.utcnow().isoformat(),
+            "messages": state["messages"] + [message],
+            "total_cost_usd": state["total_cost_usd"] + result["metadata"]["cost_usd"],
+        }
+    except Exception as e:
+        logger.error("docs_generation_failed_gracefully", error=str(e), session_id=state["session_id"])
+        await cb(ErrorEvent(message=f"Documentation generation failed: {str(e)}. Returning raw design.", recoverable=True).model_dump())
 
-    message = AgentMessage(
-        agent="documentation",
-        role="Documentation",
-        summary=_documentation._generate_summary(result["output"]),
-        raw_output=doc_json,
-        timestamp=result["metadata"]["timestamp"],
-        duration_seconds=result["metadata"]["duration_seconds"],
-        model=result["metadata"]["model"],
-        cost_usd=result["metadata"]["cost_usd"],
-    )
+        # Fallback: return the raw design as markdown
+        rendered_md = f"# Architecture Design\n\n_(Documentation agent failed: {str(e)})_\n\n```\n{state.get('current_design', 'No design available')[:5000]}\n```"
+        message = AgentMessage(
+            agent="documentation",
+            role="Documentation",
+            summary="Documentation failed — raw design returned.",
+            raw_output="{}",
+            timestamp=datetime.utcnow().isoformat(),
+            duration_seconds=0,
+            model="N/A",
+            cost_usd=0,
+        )
+        return {
+            "final_document": "{}",
+            "rendered_markdown": rendered_md,
+            "mermaid_diagrams": [],
+            "status": "complete",
+            "completed_at": datetime.utcnow().isoformat(),
+            "messages": state["messages"] + [message],
+            "total_cost_usd": state["total_cost_usd"],
+        }
 
-    from datetime import datetime
 
-    return {
-        "final_document": doc_json,
-        "rendered_markdown": rendered_md,
-        "mermaid_diagrams": diagrams,
-        "status": "complete",
-        "completed_at": datetime.utcnow().isoformat(),
-        "messages": state["messages"] + [message],
-        "total_cost_usd": state["total_cost_usd"] + result["metadata"]["cost_usd"],
-    }
+def _inject_validation_data(doc_output: dict, state: ArchAdvisorState) -> None:
+    """Inject validation score and findings into the doc output for rendering."""
+    if state.get("validation_score") is None:
+        return
+    doc_output["validation_score"] = state["validation_score"]
+    doc_output["validation_passed"] = state.get("validation_passed", False)
+
+    validation_report_json = state.get("validation_report", "")
+    if not validation_report_json:
+        return
+    try:
+        report_data = json.loads(validation_report_json)
+        doc_output["validation_summary"] = report_data.get("summary", {})
+        doc_output["validation_verdict"] = report_data.get("verdict", "")
+        findings = []
+        for err in report_data.get("errors", []):
+            if err.get("severity") in ("critical", "high"):
+                findings.append({
+                    "severity": err["severity"],
+                    "code": err.get("code", ""),
+                    "message": err.get("message", ""),
+                    "category": err.get("category"),
+                    "evidence": err.get("evidence"),
+                })
+        doc_output["validation_findings"] = findings
+    except (json.JSONDecodeError, KeyError):
+        pass
 
 
 def should_continue_debate(state: ArchAdvisorState) -> str:
