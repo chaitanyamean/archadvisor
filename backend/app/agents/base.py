@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 from typing import Any, AsyncGenerator, Optional
 from datetime import datetime
 import json
+import re
 import time
 
 import structlog
@@ -33,12 +34,14 @@ class BaseAgent(ABC):
         model_name: Optional[str] = None,
         temperature: float = 0.5,
         max_output_tokens: int = 4096,
+        json_mode: bool = False,
     ):
         self.name = name
         self.role = role
         self.model_name = model_name or get_settings().ARCHITECT_MODEL
         self.temperature = temperature
         self.max_output_tokens = max_output_tokens
+        self.json_mode = json_mode
         self._llm = None
 
     @property
@@ -52,12 +55,16 @@ class BaseAgent(ABC):
         """Create the OpenAI LLM client."""
         settings = get_settings()
 
-        return ChatOpenAI(
-            model=self.model_name,
-            api_key=settings.OPENAI_API_KEY,
-            temperature=self.temperature,
-            max_tokens=self.max_output_tokens,
-        )
+        kwargs = {
+            "model": self.model_name,
+            "api_key": settings.OPENAI_API_KEY,
+            "temperature": self.temperature,
+            "max_tokens": self.max_output_tokens,
+        }
+        if self.json_mode:
+            kwargs["model_kwargs"] = {"response_format": {"type": "json_object"}}
+
+        return ChatOpenAI(**kwargs)
 
     @abstractmethod
     def get_system_prompt(self) -> str:
@@ -207,9 +214,9 @@ class BaseAgent(ABC):
         """Generate a brief summary from parsed output. Override in subclasses."""
         return f"{self.role} completed analysis."
 
-    def _safe_parse_json(self, text: str) -> dict:
-        """Extract JSON from LLM response, handling markdown code blocks."""
-        # Strip markdown code fences if present
+    @staticmethod
+    def _strip_code_fences(text: str) -> str:
+        """Remove markdown code fences from LLM output."""
         cleaned = text.strip()
         if cleaned.startswith("```json"):
             cleaned = cleaned[7:]
@@ -217,5 +224,72 @@ class BaseAgent(ABC):
             cleaned = cleaned[3:]
         if cleaned.endswith("```"):
             cleaned = cleaned[:-3]
+        return cleaned.strip()
 
-        return json.loads(cleaned.strip())
+    @staticmethod
+    def _fix_llm_json(text: str) -> str:
+        """Fix common JSON formatting issues produced by LLMs."""
+        # Remove trailing commas before } or ]
+        return re.sub(r",\s*([}\]])", r"\1", text)
+
+    @staticmethod
+    def _extract_json_object(text: str) -> Optional[str]:
+        """Find and extract the first complete JSON object from text."""
+        match = re.search(r"\{", text)
+        if not match:
+            return None
+        # Walk through characters tracking brace depth outside of strings
+        depth, in_string, escape_next = 0, False, False
+        start = match.start()
+        for i in range(start, len(text)):
+            ch = text[i]
+            if escape_next:
+                escape_next = False
+            elif ch == "\\":
+                escape_next = True
+            elif ch == '"':
+                in_string = not in_string
+            elif not in_string and ch == "{":
+                depth += 1
+            elif not in_string and ch == "}":
+                depth -= 1
+                if depth == 0:
+                    return text[start:i + 1]
+        return None
+
+    def _safe_parse_json(self, text: str) -> dict:
+        """Extract JSON from LLM response, handling common LLM formatting issues."""
+        cleaned = self._strip_code_fences(text)
+
+        # First attempt: parse as-is
+        try:
+            return json.loads(cleaned)
+        except json.JSONDecodeError as e:
+            logger.warning("json_parse_attempt_1_failed", agent=self.name, error=str(e))
+
+        # Second attempt: fix trailing commas, comments
+        try:
+            result = json.loads(self._fix_llm_json(cleaned))
+            logger.info("json_parse_recovered", agent=self.name, method="fix_llm_json")
+            return result
+        except json.JSONDecodeError as e:
+            logger.warning("json_parse_attempt_2_failed", agent=self.name, error=str(e))
+
+        # Third attempt: extract the first JSON object from surrounding text
+        extracted = self._extract_json_object(cleaned)
+        if extracted:
+            try:
+                result = json.loads(self._fix_llm_json(extracted))
+                logger.info("json_parse_recovered", agent=self.name, method="extract_object")
+                return result
+            except json.JSONDecodeError as e:
+                logger.warning("json_parse_attempt_3_failed", agent=self.name, error=str(e))
+
+        # All attempts failed — log raw response snippet for debugging
+        logger.error(
+            "json_parse_all_attempts_failed",
+            agent=self.name,
+            response_length=len(text),
+            response_preview=cleaned[:500],
+        )
+        return json.loads(cleaned)
