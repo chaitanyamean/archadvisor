@@ -34,20 +34,6 @@ export function InputView({ onSessionCreated, preferences }: InputViewProps) {
     }
   };
 
-  const handleGenerate = async () => {
-    if (requirements.length < 50) return;
-    setLoading(true);
-    setError('');
-    try {
-      const resp = await api.createSession(requirements, preferences);
-      onSessionCreated(resp.session_id);
-    } catch (e: any) {
-      setError(e.message || 'Failed to create session');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const complexityColor: Record<string, string> = {
     simple: 'text-green-600 bg-green-50 border-green-200',
     medium: 'text-amber-600 bg-amber-50 border-amber-200',
